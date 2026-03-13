@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>PokéDraft Battle</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#080812;--bg2:#0e0e1e;--bg3:#06060f;
+  --bdr:#1c1c2c;--bdr2:#2a2a4a;
+  --p1:#EF5350;--p2:#42A5F5;
+  --gold:#FFD700;--green:#4CAF50;--dim:#555;--text:#ccc;
+  --grass:#12310a;--path:#1e1408;
+  --font:'Press Start 2P',monospace;
+}
+html,body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100%;overscroll-behavior:none;}
+body{display:flex;flex-direction:column;align-items:center;}
+
+/* ── UTIL ── */
+.hidden{display:none!important;}
+.screen{width:100%;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px;gap:10px;}
+.scr-center{justify-content:center;}
+.gold{color:var(--gold);text-shadow:0 0 12px rgba(255,215,0,.5);}
+.dim{color:var(--dim);}
+.lbl{font-size:6px;letter-spacing:1px;color:var(--dim);}
+
+/* ── INPUTS ── */
+input[type=text]{
+  background:var(--bg2);border:2px solid var(--bdr);color:var(--text);
+  font-family:var(--font);font-size:8px;padding:11px 14px;border-radius:6px;
+  outline:none;width:100%;
+}
+input[type=text]:focus{border-color:var(--gold);}
+
+/* ── BUTTONS ── */
+.btn{font-family:var(--font);cursor:pointer;border:none;border-radius:6px;
+     transition:all .15s;font-size:8px;padding:11px 18px;}
+.btn-gold{background:var(--gold);color:#000;}
+.btn-gold:hover{filter:brightness(1.1);}
+.btn-green{background:#388E3C;color:#fff;}
+.btn-green:hover{background:#2E7D32;}
+.btn-blue{background:#1565C0;color:#fff;}
+.btn-blue:hover{background:#0D47A1;}
+.btn-gray{background:#1e1e2e;color:var(--dim);}
+.btn-gray:hover{background:#282838;color:var(--text);}
+.btn-red{background:#b71c1c;color:#fff;}
+.btn-red:hover{background:#a0120e;}
+.btn-sm{font-size:6px;padding:7px 11px;}
+.btn:disabled{opacity:.3;cursor:not-allowed;}
+
+/* ════════════ LOGIN ════════════ */
+#scr-login{gap:14px;padding-top:0;}
+#scr-login .box{
+  background:var(--bg2);border:2px solid var(--bdr2);border-radius:12px;
+  padding:28px 24px;width:100%;max-width:340px;text-align:center;
+  box-shadow:0 0 40px rgba(255,215,0,.06);
+}
+
+/* ════════════ LOBBY ════════════ */
+.name-bar{
+  display:flex;align-items:center;gap:10px;
+  background:var(--bg2);border:2px solid var(--bdr);border-radius:8px;
+  padding:10px 14px;width:100%;max-width:540px;
+}
+.name-bar .name-val{font-size:10px;color:var(--gold);flex:1;overflow:hidden;text-overflow:ellipsis;}
+.name-edit-row{display:flex;gap:8px;align-items:center;width:100%;max-width:540px;}
+.name-edit-row input{flex:1;max-width:220px;font-size:7px;padding:8px 10px;}
+
+.section-title{font-size:6px;color:var(--dim);letter-spacing:1px;align-self:flex-start;max-width:540px;width:100%;}
+.create-row{display:flex;gap:8px;width:100%;max-width:540px;}
+.create-row input{flex:1;}
+
+.room-list{width:100%;max-width:540px;display:flex;flex-direction:column;gap:8px;max-height:48vh;overflow-y:auto;}
+.room-card{
+  background:var(--bg2);border:2px solid var(--bdr);border-radius:8px;
+  padding:12px 14px;cursor:pointer;transition:all .15s;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.room-card:hover{border-color:#3a3a5a;}
+.room-card.mine{border-color:#3a3000;}
+.room-card .rname{font-size:8px;}
+.room-card .rmeta{font-size:6px;color:var(--dim);margin-top:4px;}
+.rstat{font-size:5px;padding:4px 8px;border-radius:10px;}
+.rstat-open{background:#0e2a0e;color:#4CAF50;}
+.rstat-playing{background:#0e0e2a;color:var(--p2);}
+.rstat-full{background:#2a0e0e;color:var(--p1);}
+
+/* ════════════ ROOM ════════════ */
+#scr-room{gap:14px;}
+.vs-row{display:flex;gap:14px;align-items:center;}
+.p-slot{
+  background:var(--bg2);border:2px solid var(--bdr);border-radius:10px;
+  padding:16px 18px;text-align:center;width:140px;
+}
+.p-slot.p1{border-color:#EF535030;}
+.p-slot.p2{border-color:#42A5F530;}
+.p-slot .role{font-size:6px;margin-bottom:8px;}
+.p-slot .pname{font-size:8px;}
+.p-slot .pname.empty{color:var(--dim);}
+
+/* ════════════ GAME ════════════ */
+#scr-game{padding:10px;gap:8px;}
+.game-header{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:540px;}
+
+.game-map{
+  display:grid;
+  grid-template-columns:repeat(3,var(--ts,104px));
+  grid-template-rows:repeat(3,var(--ts,104px));
+  border:3px solid var(--bdr);border-radius:8px;overflow:hidden;
+  box-shadow:0 6px 32px rgba(0,0,0,.9);flex-shrink:0;
+}
+@media(max-width:440px){
+  :root{--ts:88px;}
+}
+.tile{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.tile.grass{background:var(--grass);}
+.tile.path{background:var(--path);}
+.tile:not(:nth-child(3n)){border-right:1px solid #0a0a0a;}
+.tile:nth-child(-n+6){border-bottom:1px solid #0a0a0a;}
+.grass-deco{position:absolute;font-size:32px;opacity:.2;animation:sway 2.4s ease-in-out infinite;pointer-events:none;}
+@keyframes sway{0%,100%{transform:scale(1)rotate(-1deg)}50%{transform:scale(1.08)rotate(2deg)}}
+.token{
+  position:absolute;width:32px;height:32px;border-radius:50%;
+  border:3px solid #fff;display:flex;align-items:center;justify-content:center;
+  font-size:6px;color:#fff;z-index:2;font-family:var(--font);
+  transition:left .15s,top .15s;
+}
+.tok-p1{background:var(--p1);box-shadow:0 0 8px var(--p1);}
+.tok-p2{background:var(--p2);box-shadow:0 0 8px var(--p2);}
+
+.info-panels{display:flex;gap:8px;width:100%;max-width:540px;}
+.info-panel{flex:1;background:var(--bg2);border:2px solid var(--bdr);border-radius:8px;padding:10px;min-width:0;}
+.panel-p1{border-color:#EF535030;}
+.panel-p2{border-color:#42A5F530;}
+.panel-role{font-size:5px;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.panel-em{font-size:30px;text-align:center;}
+.panel-name{font-size:7px;color:var(--text);text-align:center;margin:3px 0;}
+.panel-type{text-align:center;margin-bottom:4px;}
+.tbadge{display:inline-block;font-size:5px;padding:2px 7px;border-radius:10px;}
+.panel-hptext{font-size:5px;color:var(--dim);}
+.hp-wrap{height:6px;background:#111;border-radius:3px;overflow:hidden;margin-top:2px;}
+.hp-bar{height:100%;transition:width .4s;}
+.hp-hi{background:var(--green);}
+.hp-md{background:#FF9800;}
+.hp-lo{background:#F44336;}
+.no-mon{text-align:center;color:#1e1e1e;font-size:7px;padding:10px 0;}
+
+.game-log{
+  width:100%;max-width:540px;background:var(--bg3);border:2px solid var(--bdr);
+  border-radius:8px;padding:8px 12px;font-size:6px;color:var(--dim);
+  line-height:18px;max-height:64px;overflow-y:auto;
+}
+
+/* D-pad */
+.dpad{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:4px;}
+.dpad-row{display:flex;gap:4px;align-items:center;}
+.dp{
+  width:54px;height:54px;background:var(--bg2);border:2px solid var(--bdr);
+  border-radius:8px;color:var(--dim);font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .1s;
+  touch-action:manipulation;user-select:none;
+}
+.dp:active{background:#1a1a2a;color:var(--text);transform:scale(.94);}
+.dp-mid{width:54px;height:54px;background:#0a0a14;border:2px solid var(--bdr);border-radius:8px;}
+
+/* Waiting blink */
+.blink{animation:blink 1.4s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ════════════ OVERLAYS ════════════ */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.9);
+  display:flex;align-items:center;justify-content:center;z-index:200;padding:14px;
+}
+.ocard{
+  background:var(--bg2);border:3px solid;border-radius:14px;
+  padding:22px;width:100%;animation:pop .2s ease-out;
+}
+@keyframes pop{from{opacity:0;transform:scale(.9) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+/* Encounter */
+#ov-enc .ocard{border-color:var(--gold);max-width:360px;text-align:center;box-shadow:0 0 50px rgba(255,215,0,.1);}
+
+/* Battle */
+#ov-bat .ocard{border-color:var(--bdr2);max-width:640px;}
+.move-btn{
+  font-family:var(--font);background:var(--bg3);border:1.5px solid var(--bdr2);
+  color:#bbb;font-size:6px;padding:8px 10px;width:100%;margin-bottom:5px;
+  cursor:pointer;border-radius:5px;display:flex;justify-content:space-between;
+  align-items:center;gap:6px;transition:all .12s;
+}
+.move-btn:hover:not(:disabled){background:#181838;border-color:#5a5a9a;color:#fff;}
+.move-btn.chosen{background:#0e2a0e;border-color:var(--green);color:#fff;}
+.move-btn:disabled{opacity:.3;cursor:not-allowed;}
+
+/* ════════════ TOAST ════════════ */
+#toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);
+  background:#0e2a0e;border:2px solid var(--green);border-radius:8px;
+  padding:10px 16px;font-size:7px;color:var(--green);z-index:300;
+  transition:transform .3s;pointer-events:none;white-space:nowrap;
+}
+#toast.show{transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════ LOGIN ══════════════════════ -->
+<div id="scr-login" class="screen scr-center">
+  <div class="box">
+    <div style="font-size:13px;" class="gold">🎮 PokéDraft</div>
+    <div style="font-size:6px;color:var(--dim);margin:6px 0 20px;letter-spacing:1px;">BATTLE ARENA</div>
+    <div style="font-size:6px;color:var(--dim);margin-bottom:18px;line-height:20px;">Enter your trainer name!</div>
+    <input type="text" id="login-input" placeholder="Trainer name..." maxlength="14"
+           style="text-align:center;margin-bottom:12px;">
+    <div id="login-err" style="font-size:6px;color:var(--p1);min-height:16px;margin-bottom:8px;"></div>
+    <button class="btn btn-gold" style="width:100%;" onclick="handleLogin()">▶ Start!</button>
+  </div>
+</div>
+
+<!-- ══════════════════════ LOBBY ══════════════════════ -->
+<div id="scr-lobby" class="screen hidden">
+  <div style="font-size:11px;" class="gold">🎮 PokéDraft</div>
+
+  <!-- Name bar -->
+  <div class="name-bar">
+    <span class="lbl">TRAINER:</span>
+    <span class="name-val" id="lob-name">—</span>
+    <button class="btn btn-gray btn-sm" onclick="toggleNameEdit()">✏️ Edit</button>
+  </div>
+
+  <!-- Name edit -->
+  <div id="name-edit" class="name-edit-row hidden">
+    <input type="text" id="name-edit-inp" maxlength="14" placeholder="New name...">
+    <button class="btn btn-green btn-sm" onclick="saveName()">Save</button>
+    <button class="btn btn-gray btn-sm" onclick="toggleNameEdit()">✕</button>
+  </div>
+
+  <div class="section-title">CREATE A ROOM</div>
+  <div class="create-row">
+    <input type="text" id="room-name-inp" placeholder="Room name (optional)..." maxlength="22">
+    <button class="btn btn-gold" style="font-size:7px;padding:10px 14px;white-space:nowrap;" onclick="createRoom()">+ Create</button>
+  </div>
+
+  <div class="section-title" style="margin-top:4px;">AVAILABLE ROOMS</div>
+  <div class="room-list" id="room-list">
+    <div style="font-size:7px;color:var(--dim);text-align:center;padding:20px;">Loading…</div>
+  </div>
+</div>
+
+<!-- ══════════════════════ ROOM ══════════════════════ -->
+<div id="scr-room" class="screen scr-center hidden">
+  <div style="font-size:6px;" class="dim">ROOM</div>
+  <div style="font-size:18px;letter-spacing:4px;" class="gold" id="room-disp-name">—</div>
+
+  <div class="vs-row" style="margin:10px 0;">
+    <div class="p-slot p1">
+      <div class="role" style="color:var(--p1);">🔴 P1</div>
+      <div class="pname" id="room-p1-name">Waiting…</div>
+    </div>
+    <div style="font-size:12px;color:var(--dim);">VS</div>
+    <div class="p-slot p2">
+      <div class="role" style="color:var(--p2);">🔵 P2</div>
+      <div class="pname empty" id="room-p2-name">Waiting…</div>
+    </div>
+  </div>
+
+  <div id="room-status" style="font-size:7px;" class="dim blink">Waiting for opponent…</div>
+  <button class="btn btn-green" id="start-btn" style="display:none;margin-top:8px;" onclick="startGame()">▶ Start Game</button>
+  <button class="btn btn-gray btn-sm" style="margin-top:8px;" onclick="leaveRoom()">← Leave Room</button>
+</div>
+
+<!-- ══════════════════════ GAME ══════════════════════ -->
+<div id="scr-game" class="screen hidden">
+
+  <div class="game-header">
+    <div style="font-size:8px;" class="gold">PokéDraft</div>
+    <div style="font-size:6px;color:#252530;" id="ctrl-hint">WASD to move</div>
+    <button class="btn btn-gray btn-sm" onclick="leaveGame()">← Leave</button>
+  </div>
+
+  <div class="game-map" id="game-map"></div>
+
+  <div class="info-panels">
+    <div class="info-panel panel-p1" id="panel-p1">
+      <div class="panel-role" id="p1-role-lbl" style="color:var(--p1);">🔴 P1</div>
+      <div class="no-mon">❓<br><span style="font-size:5px;">No Pokémon</span></div>
+    </div>
+    <div class="info-panel panel-p2" id="panel-p2">
+      <div class="panel-role" id="p2-role-lbl" style="color:var(--p2);">🔵 P2</div>
+      <div class="no-mon">❓<br><span style="font-size:5px;">No Pokémon</span></div>
+    </div>
+  </div>
+
+  <div class="game-log" id="game-log">
+    <div>🌿 Walk into tall grass to find Pokémon!</div>
+    <div>⚔️  Meet your opponent to battle!</div>
+  </div>
+
+  <div class="dpad" id="dpad">
+    <div class="dpad-row">
+      <button class="dp" ontouchstart="event.preventDefault();moveMe('up')" onclick="moveMe('up')">▲</button>
+    </div>
+    <div class="dpad-row">
+      <button class="dp" ontouchstart="event.preventDefault();moveMe('left')" onclick="moveMe('left')">◄</button>
+      <div class="dp-mid"></div>
+      <button class="dp" ontouchstart="event.preventDefault();moveMe('right')" onclick="moveMe('right')">►</button>
+    </div>
+    <div class="dpad-row">
+      <button class="dp" ontouchstart="event.preventDefault();moveMe('down')" onclick="moveMe('down')">▼</button>
+    </div>
+  </div>
+
+  <!-- ENCOUNTER OVERLAY -->
+  <div class="overlay hidden" id="ov-enc">
+    <div class="ocard">
+      <div style="font-size:7px;color:var(--gold);margin-bottom:12px;" id="enc-title">Wild Pokémon!</div>
+      <div style="font-size:60px;" id="enc-em">❓</div>
+      <div style="font-size:14px;color:#fff;margin:4px 0;" id="enc-name">???</div>
+      <div id="enc-badge" class="tbadge" style="margin-bottom:10px;">???</div>
+      <div style="display:flex;gap:14px;justify-content:center;font-size:6px;color:var(--dim);margin-bottom:6px;">
+        <span>HP <span id="enc-hp">?</span></span>
+        <span>ATK <span id="enc-atk">?</span></span>
+        <span>DEF <span id="enc-def">?</span></span>
+        <span>SPD <span id="enc-spd">?</span></span>
+      </div>
+      <div id="enc-moves" style="font-size:5px;color:#333;margin-bottom:14px;"></div>
+      <div id="enc-warn" style="font-size:6px;color:#FF9800;margin-bottom:10px;"></div>
+      <div style="display:flex;justify-content:center;gap:10px;">
+        <button class="btn btn-blue" onclick="doCatch()">🎾 Catch!</button>
+        <button class="btn btn-gray" onclick="doRun()">🏃 Run</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BATTLE OVERLAY -->
+  <div class="overlay hidden" id="ov-bat">
+    <div class="ocard">
+      <div style="text-align:center;font-size:10px;letter-spacing:4px;margin-bottom:14px;" class="gold">⚔️ B A T T L E ⚔️</div>
+
+      <!-- HP panels -->
+      <div style="display:flex;gap:10px;margin-bottom:12px;">
+        <div style="flex:1;background:var(--bg3);border:2px solid #EF535030;border-radius:8px;padding:10px;">
+          <div style="font-size:7px;color:var(--p1);margin-bottom:4px;" id="bat-p1-lbl">P1</div>
+          <div style="font-size:5px;color:var(--dim);margin-bottom:2px;" id="bat-p1-hp">HP ?</div>
+          <div class="hp-wrap"><div id="bat-p1-bar" class="hp-bar hp-hi" style="width:100%"></div></div>
+          <div id="bat-p1-chosen" style="font-size:5px;color:var(--green);margin-top:3px;"></div>
+        </div>
+        <div style="color:#222;font-size:12px;display:flex;align-items:center;">VS</div>
+        <div style="flex:1;background:var(--bg3);border:2px solid #42A5F530;border-radius:8px;padding:10px;">
+          <div style="font-size:7px;color:var(--p2);margin-bottom:4px;" id="bat-p2-lbl">P2</div>
+          <div style="font-size:5px;color:var(--dim);margin-bottom:2px;" id="bat-p2-hp">HP ?</div>
+          <div class="hp-wrap"><div id="bat-p2-bar" class="hp-bar hp-hi" style="width:100%"></div></div>
+          <div id="bat-p2-chosen" style="font-size:5px;color:var(--green);margin-top:3px;"></div>
+        </div>
+      </div>
+
+      <!-- Log -->
+      <div id="bat-log" style="background:#06060f;border:2px solid #111;border-radius:6px;
+           padding:8px 12px;min-height:48px;font-size:6px;color:var(--dim);line-height:18px;margin-bottom:12px;"></div>
+
+      <!-- Result -->
+      <div id="bat-result" class="hidden" style="text-align:center;">
+        <div id="bat-winner" style="font-size:13px;letter-spacing:3px;margin-bottom:8px;" class="gold"></div>
+        <div id="bat-sub" style="font-size:6px;color:var(--dim);margin-bottom:14px;"></div>
+        <button class="btn btn-green" onclick="endBattle()">Continue →</button>
+      </div>
+
+      <!-- Moves -->
+      <div id="bat-moves" style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <div style="font-size:6px;color:var(--p1);margin-bottom:6px;">🔴 MY MOVES:</div>
+          <div id="my-moves"></div>
+        </div>
+        <div style="width:1px;background:var(--bdr2);"></div>
+        <div style="flex:1;">
+          <div style="font-size:6px;color:var(--p2);margin-bottom:6px;" id="opp-lbl">🔵 OPPONENT:</div>
+          <div id="opp-status" style="font-size:6px;color:var(--dim);text-align:center;padding:16px 0;">
+            Waiting for move…
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  FIREBASE + PCID
+// ══════════════════════════════════════════════
+firebase.initializeApp({
+  apiKey:"AIzaSyDVbt_8GuRuHJRPAN7jFXbs_lJUfUHNxHE",
+  authDomain:"chummy-games.firebaseapp.com",
+  databaseURL:"https://chummy-games-default-rtdb.firebaseio.com",
+  projectId:"chummy-games",
+  storageBucket:"chummy-games.firebasestorage.app",
+  messagingSenderId:"869241598273",
+  appId:"1:869241598273:web:d97492b7308f785c37f1c0"
+});
+const db = firebase.database();
+
+function getOrCreatePCID(){
+  const k='ChummyGames-PC-ID';
+  let id=localStorage.getItem(k);
+  if(!id||id.length!==12){
+    id=Array.from({length:12},()=>'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random()*26)]).join('');
+    localStorage.setItem(k,id);
+  }
+  return id;
+}
+const myPCID = getOrCreatePCID();
+
+// ══════════════════════════════════════════════
+//  GAME DATA
+// ══════════════════════════════════════════════
+const MAP=[[0,1,0],[1,0,1],[0,1,0]];
+
+const POKEMON=[
+  {name:"Bulbasaur", em:"🌱",type:"Grass",   hp:45,atk:49,def:49,spd:45,moves:["Vine Whip","Razor Leaf","Sleep Powder","Tackle"]},
+  {name:"Charmander",em:"🔥",type:"Fire",    hp:39,atk:52,def:43,spd:65,moves:["Ember","Slash","Scratch","Growl"]},
+  {name:"Squirtle",  em:"💧",type:"Water",   hp:44,atk:48,def:65,spd:43,moves:["Water Gun","Bubble Beam","Tackle","Defense Curl"]},
+  {name:"Pikachu",   em:"⚡",type:"Electric",hp:35,atk:55,def:30,spd:90,moves:["Thunderbolt","Thunder Shock","Quick Attack","Growl"]},
+  {name:"Geodude",   em:"🪨",type:"Rock",    hp:40,atk:80,def:100,spd:20,moves:["Rock Throw","Rock Blast","Tackle","Defense Curl"]},
+  {name:"Gastly",    em:"👻",type:"Ghost",   hp:30,atk:35,def:30,spd:80,moves:["Lick","Night Shade","Hypnosis","Confusion"]},
+  {name:"Machop",    em:"🥊",type:"Fighting",hp:70,atk:80,def:50,spd:35,moves:["Cross Chop","Karate Chop","Seismic Toss","Low Kick"]},
+  {name:"Abra",      em:"🔮",type:"Psychic", hp:25,atk:20,def:15,spd:90,moves:["Psybeam","Confusion","Hypnosis","Tackle"]},
+  {name:"Magikarp",  em:"🐟",type:"Water",   hp:20,atk:10,def:55,spd:80,moves:["Splash","Tackle","Flail","Tackle"]},
+  {name:"Eevee",     em:"🦊",type:"Normal",  hp:55,atk:55,def:50,spd:55,moves:["Quick Attack","Bite","Sand Attack","Tackle"]},
+  {name:"Jigglypuff",em:"🎵",type:"Normal",  hp:115,atk:45,def:20,spd:20,moves:["Pound","Body Slam","Sing","Defense Curl"]},
+  {name:"Meowth",    em:"🐱",type:"Normal",  hp:40,atk:45,def:35,spd:90,moves:["Slash","Scratch","Bite","Quick Attack"]},
+  {name:"Psyduck",   em:"🦆",type:"Water",   hp:50,atk:52,def:48,spd:55,moves:["Water Gun","Confusion","Scratch","Psybeam"]},
+  {name:"Slowpoke",  em:"🌀",type:"Water",   hp:90,atk:65,def:65,spd:15,moves:["Water Gun","Confusion","Tackle","Body Slam"]},
+  {name:"Clefairy",  em:"⭐",type:"Normal",  hp:70,atk:45,def:48,spd:35,moves:["Pound","Body Slam","Sing","Defense Curl"]},
+];
+
+const MOVES={
+  "Vine Whip":{pow:45,type:"Grass"},"Razor Leaf":{pow:55,type:"Grass"},"Sleep Powder":{pow:0,type:"Grass",fx:"sleep"},
+  "Ember":{pow:40,type:"Fire"},"Slash":{pow:70,type:"Normal"},"Scratch":{pow:40,type:"Normal"},"Growl":{pow:0,type:"Normal",fx:"stat"},
+  "Water Gun":{pow:40,type:"Water"},"Bubble Beam":{pow:65,type:"Water"},"Defense Curl":{pow:0,type:"Normal",fx:"stat"},
+  "Thunderbolt":{pow:90,type:"Electric"},"Thunder Shock":{pow:40,type:"Electric"},"Quick Attack":{pow:40,type:"Normal"},
+  "Rock Throw":{pow:50,type:"Rock"},"Rock Blast":{pow:25,type:"Rock"},"Tackle":{pow:40,type:"Normal"},
+  "Lick":{pow:30,type:"Ghost"},"Night Shade":{pow:50,type:"Ghost"},"Hypnosis":{pow:0,type:"Psychic",fx:"sleep"},"Confusion":{pow:50,type:"Psychic"},
+  "Cross Chop":{pow:100,type:"Fighting"},"Karate Chop":{pow:50,type:"Fighting"},"Seismic Toss":{pow:50,type:"Fighting"},"Low Kick":{pow:50,type:"Fighting"},
+  "Splash":{pow:0,type:"Normal",fx:"nothing"},"Flail":{pow:20,type:"Normal"},"Sand Attack":{pow:0,type:"Ground",fx:"stat"},
+  "Bite":{pow:60,type:"Dark"},"Psybeam":{pow:65,type:"Psychic"},"Pound":{pow:40,type:"Normal"},"Body Slam":{pow:85,type:"Normal"},"Sing":{pow:0,type:"Normal",fx:"sleep"},
+};
+
+const EFF={
+  Fire:{Grass:2,Ice:2,Bug:2,Water:.5,Rock:.5,Fire:.5},
+  Water:{Fire:2,Rock:2,Ground:2,Grass:.5,Water:.5},
+  Grass:{Water:2,Rock:2,Ground:2,Fire:.5,Grass:.5,Flying:.5},
+  Electric:{Water:2,Flying:2,Ground:0,Electric:.5},
+  Rock:{Fire:2,Ice:2,Flying:2,Bug:2,Ground:.5,Fighting:.5},
+  Ghost:{Ghost:2,Psychic:2,Normal:0,Fighting:0},
+  Fighting:{Normal:2,Rock:2,Ice:2,Dark:2,Psychic:.5,Ghost:0},
+  Psychic:{Fighting:2,Poison:2,Dark:0,Psychic:.5},
+  Normal:{Ghost:0},Ground:{Fire:2,Electric:2,Rock:2,Grass:.5,Flying:0},
+  Dark:{Psychic:2,Ghost:2,Fighting:.5,Dark:.5},
+};
+
+const TC={
+  Grass:"#4CAF50",Fire:"#FF5722",Water:"#2196F3",Electric:"#FFC107",Rock:"#8D6E63",
+  Ghost:"#9C27B0",Fighting:"#F44336",Psychic:"#E91E63",Normal:"#9E9E9E",Ground:"#FF9800",
+  Dark:"#5D4037",Ice:"#80DEEA",
+};
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let myName='';
+let myRole=null;        // 'p1'|'p2'
+let currentRoomId=null;
+let roomData=null;
+let roomListener=null;
+let roomsListener=null;
+let wildPokemon=null;   // local encounter
+let inBattle=false;
+let myMoveChosen=null;
+let moveCooldown=false;
+let battleSnapshot=null; // saved before clearing
+
+// ══════════════════════════════════════════════
+//  REFS
+// ══════════════════════════════════════════════
+const playersRef=()=>db.ref('pokeDraft/players');
+const pRef=()=>db.ref(`pokeDraft/players/${myPCID}`);
+const roomsRef=()=>db.ref('pokeDraft/rooms');
+const rRef=(id)=>db.ref(`pokeDraft/rooms/${id||currentRoomId}`);
+const mySlot=()=>db.ref(`pokeDraft/rooms/${currentRoomId}/players/${myPCID}`);
+const battleRef=()=>db.ref(`pokeDraft/rooms/${currentRoomId}/game/battle`);
+
+// ══════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════
+const getEff=(mt,dt)=>(EFF[mt]||{})[dt]??1;
+const randMon=()=>{const b=POKEMON[Math.floor(Math.random()*POKEMON.length)];return{...b,curHp:b.hp};};
+const makeId=(n=6)=>Array.from({length:n},()=>'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random()*36)]).join('');
+const isMobile=()=>window.matchMedia('(pointer:coarse)').matches||window.innerWidth<600;
+
+function calcDmg(atker,moveName,defer){
+  const m=MOVES[moveName];if(!m||m.pow===0)return 0;
+  const e=getEff(m.type,defer.type);
+  const raw=Math.floor(((2*5/5+2)*atker.atk*m.pow/defer.def/50)+2);
+  return Math.max(1,Math.round(raw*(0.85+Math.random()*.15)*e));
+}
+
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  document.getElementById('scr-'+name).classList.remove('hidden');
+}
+
+function pushLog(msg){
+  const log=document.getElementById('game-log');
+  const d=document.createElement('div');d.textContent=msg;
+  log.appendChild(d);log.scrollTop=log.scrollHeight;
+  // trim to last 20
+  while(log.children.length>20)log.removeChild(log.firstChild);
+}
+
+let toastTimer;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+function stopRoomListener(){
+  if(roomListener&&currentRoomId){
+    rRef(currentRoomId).off('value',roomListener);
+    roomListener=null;
+  }
+}
+function stopRoomsListener(){
+  if(roomsListener){
+    roomsRef().off('value',roomsListener);
+    roomsListener=null;
+  }
+}
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+async function init(){
+  const snap=await pRef().once('value');
+  if(snap.exists()){
+    myName=snap.val().name;
+    await pRef().update({lastSeen:Date.now()});
+    // Check for saved room
+    const saved=localStorage.getItem('pokeDraft-room');
+    if(saved){
+      const rs=await rRef(saved).once('value');
+      if(rs.exists()&&rs.val().players&&rs.val().players[myPCID]){
+        showScreen('lobby');
+        initLobby();
+        enterRoom(saved);
+        return;
+      }
+      localStorage.removeItem('pokeDraft-room');
+    }
+    showScreen('lobby');initLobby();
+  } else {
+    showScreen('login');
+    document.getElementById('login-input').focus();
+  }
+}
+
+// ══════════════════════════════════════════════
+//  LOGIN
+// ══════════════════════════════════════════════
+async function handleLogin(){
+  const name=document.getElementById('login-input').value.trim();
+  const err=document.getElementById('login-err');
+  if(!name||name.length<2){err.textContent='Need at least 2 characters!';return;}
+  err.textContent='';
+  myName=name;
+  await pRef().set({pcid:myPCID,name:myName,createdAt:Date.now(),lastSeen:Date.now()});
+  showScreen('lobby');initLobby();
+}
+document.getElementById('login-input').onkeydown=e=>{if(e.key==='Enter')handleLogin();};
+
+// ══════════════════════════════════════════════
+//  LOBBY
+// ══════════════════════════════════════════════
+function initLobby(){
+  document.getElementById('lob-name').textContent=myName;
+  document.getElementById('name-edit-inp').value=myName;
+  stopRoomsListener();
+  roomsListener=roomsRef().on('value',snap=>{renderRoomList(snap.val()||{});});
+}
+
+function renderRoomList(rooms){
+  const list=document.getElementById('room-list');
+  list.innerHTML='';
+  const entries=Object.values(rooms).sort((a,b)=>b.createdAt-a.createdAt);
+  const visible=entries.filter(r=>{
+    const pCount=Object.keys(r.players||{}).length;
+    const isMine=r.players&&r.players[myPCID];
+    return isMine||((r.status==='waiting'||r.status==='in_progress')&&pCount<2);
+  });
+  if(!visible.length){
+    list.innerHTML='<div style="font-size:7px;color:var(--dim);text-align:center;padding:20px;">No rooms yet — create one!</div>';
+    return;
+  }
+  visible.forEach(room=>{
+    const pCount=Object.keys(room.players||{}).length;
+    const isMine=room.players&&room.players[myPCID];
+    const names=Object.values(room.players||{}).map(p=>p.name).join(', ');
+    const statLabel=room.status==='in_progress'?'⚔️ Playing':pCount>=2?'🔴 Full':'🟢 Open';
+    const statClass=room.status==='in_progress'?'rstat-playing':pCount>=2?'rstat-full':'rstat-open';
+    const card=document.createElement('div');
+    card.className='room-card'+(isMine?' mine':'');
+    card.innerHTML=`
+      <div>
+        <div class="rname">${room.name||room.id}</div>
+        <div class="rmeta">${names||'Empty'} · ${pCount}/2</div>
+        ${isMine?'<div style="font-size:5px;color:var(--gold);margin-top:3px;">★ YOUR ROOM</div>':''}
+      </div>
+      <span class="rstat ${statClass}">${statLabel}</span>
+    `;
+    card.onclick=()=>enterRoom(room.id);
+    list.appendChild(card);
+  });
+}
+
+async function createRoom(){
+  const name=document.getElementById('room-name-inp').value.trim();
+  const id=makeId(6);
+  await rRef(id).set({
+    id,name:name||`Room ${id}`,status:'waiting',createdAt:Date.now(),createdBy:myPCID,
+    players:{[myPCID]:{pcid:myPCID,name:myName,role:'p1',pos:{r:0,c:0},mon:null,encountering:false}},
+  });
+  document.getElementById('room-name-inp').value='';
+  enterRoom(id);
+}
+
+// ══════════════════════════════════════════════
+//  ENTER ROOM
+// ══════════════════════════════════════════════
+async function enterRoom(roomId){
+  const snap=await rRef(roomId).once('value');
+  if(!snap.exists()){toast('Room not found!');return;}
+  const room=snap.val();
+  const players=room.players||{};
+
+  if(players[myPCID]){
+    myRole=players[myPCID].role;
+  } else {
+    const count=Object.keys(players).length;
+    if(count>=2){toast('Room is full!');return;}
+    myRole='p2';
+    await rRef(roomId).child(`players/${myPCID}`).set(
+      {pcid:myPCID,name:myName,role:'p2',pos:{r:2,c:2},mon:null,encountering:false}
+    );
+  }
+
+  currentRoomId=roomId;
+  localStorage.setItem('pokeDraft-room',roomId);
+
+  stopRoomsListener();
+  showScreen('room');
+  startRoomListener(roomId);
+}
+
+// ══════════════════════════════════════════════
+//  ROOM LISTENER (routes all screens)
+// ══════════════════════════════════════════════
+function startRoomListener(roomId){
+  stopRoomListener();
+  currentRoomId=roomId;
+  roomListener=rRef(roomId).on('value',snap=>{
+    if(!snap.exists()){handleRoomGone();return;}
+    roomData=snap.val();
+    routeUpdate(roomData);
+  });
+}
+
+function routeUpdate(room){
+  const onRoom=!document.getElementById('scr-room').classList.contains('hidden');
+  const onGame=!document.getElementById('scr-game').classList.contains('hidden');
+  if(onRoom){
+    updateRoomScreen(room);
+    if(room.status==='in_progress'){showScreen('game');initGame(room);}
+  } else if(onGame){
+    updateGame(room);
+  }
+}
+
+function handleRoomGone(){
+  stopRoomListener();
+  currentRoomId=null;myRole=null;
+  localStorage.removeItem('pokeDraft-room');
+  toast('Room was deleted.');
+  showScreen('lobby');initLobby();
+}
+
+// ══════════════════════════════════════════════
+//  ROOM SCREEN
+// ══════════════════════════════════════════════
+function updateRoomScreen(room){
+  const players=room.players||{};
+  const p1=Object.values(players).find(p=>p.role==='p1');
+  const p2=Object.values(players).find(p=>p.role==='p2');
+  document.getElementById('room-disp-name').textContent=room.name||room.id;
+  document.getElementById('room-p1-name').textContent=p1?p1.name:'Waiting…';
+  document.getElementById('room-p1-name').className='pname'+(p1?'':' empty');
+  document.getElementById('room-p2-name').textContent=p2?p2.name:'Waiting…';
+  document.getElementById('room-p2-name').className='pname'+(p2?'':' empty');
+  const ready=p1&&p2;
+  const stEl=document.getElementById('room-status');
+  const stBtn=document.getElementById('start-btn');
+  stEl.textContent=ready?'Both trainers ready!':'Waiting for opponent…';
+  stEl.style.color=ready?'var(--green)':'';
+  stEl.className=ready?'':'blink';
+  stBtn.style.display=ready?'block':'none';
+}
+
+async function startGame(){
+  await rRef().update({status:'in_progress'});
+}
+
+async function leaveRoom(){
+  stopRoomListener();
+  await rRef().child(`players/${myPCID}`).remove();
+  // Cleanup empty / fix roles
+  const snap=await rRef().once('value');
+  if(snap.exists()){
+    const pls=snap.val().players||{};
+    if(!Object.keys(pls).length){await rRef().remove();}
+    else{
+      const rem=Object.values(pls);
+      if(rem.length===1&&rem[0].role==='p2'){
+        await rRef().child(`players/${rem[0].pcid}/role`).set('p1');
+        await rRef().update({status:'waiting'});
+      }
+    }
+  }
+  currentRoomId=null;myRole=null;
+  localStorage.removeItem('pokeDraft-room');
+  showScreen('lobby');initLobby();
+}
+
+// ══════════════════════════════════════════════
+//  GAME INIT
+// ══════════════════════════════════════════════
+function initGame(room){
+  myRole=room.players[myPCID]?.role||myRole;
+  document.getElementById('ctrl-hint').textContent=isMobile()?'Use D-pad to move':'WASD to move';
+  document.getElementById('dpad').style.display=isMobile()?'flex':'none';
+  buildMap();
+  updateGame(room);
+}
+
+// ══════════════════════════════════════════════
+//  MAP RENDER
+// ══════════════════════════════════════════════
+function buildMap(){
+  const map=document.getElementById('game-map');
+  map.innerHTML='';
+  for(let r=0;r<3;r++) for(let c=0;c<3;c++){
+    const t=document.createElement('div');
+    t.className='tile '+(MAP[r][c]?'grass':'path');
+    t.id=`t${r}${c}`;
+    if(MAP[r][c]){const g=document.createElement('span');g.className='grass-deco';g.textContent='🌿';t.appendChild(g);}
+    map.appendChild(t);
+  }
+}
+
+function renderTokens(room){
+  document.querySelectorAll('.token').forEach(t=>t.remove());
+  const players=Object.values(room.players||{});
+  players.forEach(pl=>{
+    if(!pl.pos)return;
+    const tile=document.getElementById(`t${pl.pos.r}${pl.pos.c}`);
+    if(!tile)return;
+    const others=players.filter(o=>o.pcid!==pl.pcid&&o.pos&&o.pos.r===pl.pos.r&&o.pos.c===pl.pos.c);
+    const tk=document.createElement('div');
+    tk.className=`token ${pl.role==='p1'?'tok-p1':'tok-p2'}`;
+    tk.textContent=pl.role==='p1'?'P1':'P2';
+    tk.style.top='50%';
+    if(others.length){tk.style.left=pl.role==='p1'?'28%':'72%';}
+    else{tk.style.left='50%';}
+    tk.style.transform='translate(-50%,-50%)';
+    tile.appendChild(tk);
+  });
+}
+
+function renderPanel(role,player,battle){
+  const el=document.getElementById('panel-'+role);
+  const lbl=document.getElementById(role+'-role-lbl');
+  const isMe=player&&player.pcid===myPCID;
+  lbl.textContent=`${role==='p1'?'🔴':'🔵'} ${player?player.name:(role==='p1'?'P1':'P2')}${isMe?' (you)':''}`;
+  const mon=player?.mon;
+  const pmon=el.querySelector('.panel-mon-data')||document.createElement('div');
+  // find or create inner
+  let inner=el.querySelector('.mon-inner');
+  if(!inner){inner=document.createElement('div');inner.className='mon-inner';el.appendChild(inner);}
+  if(!mon){inner.innerHTML='<div class="no-mon">❓<br><span style="font-size:5px;">No Pokémon</span></div>';return;}
+  let curHp=mon.curHp??mon.hp;
+  if(battle){curHp=role==='p1'?battle.p1Hp:battle.p2Hp;}
+  const pct=Math.max(0,curHp/mon.hp*100);
+  const barClass=pct>50?'hp-hi':pct>25?'hp-md':'hp-lo';
+  const tc=TC[mon.type]||'#777';
+  inner.innerHTML=`
+    <div class="panel-em">${mon.em}</div>
+    <div class="panel-name">${mon.name}</div>
+    <div class="panel-type"><span class="tbadge" style="background:${tc}22;color:${tc};border:1px solid ${tc}44;">${mon.type}</span></div>
+    <div class="panel-hptext">${curHp}/${mon.hp} HP</div>
+    <div class="hp-wrap"><div class="hp-bar ${barClass}" style="width:${pct}%"></div></div>
+  `;
+}
+
+// ══════════════════════════════════════════════
+//  GAME UPDATE (called on every Firebase change while on game screen)
+// ══════════════════════════════════════════════
+function updateGame(room){
+  renderTokens(room);
+  const battle=room.game?.battle;
+  renderPanel('p1',Object.values(room.players||{}).find(p=>p.role==='p1'),battle);
+  renderPanel('p2',Object.values(room.players||{}).find(p=>p.role==='p2'),battle);
+
+  if(battle&&!inBattle&&!wildPokemon){
+    openBattleOverlay(room,battle);
+  } else if(battle&&inBattle){
+    syncBattleOverlay(room,battle);
+  } else if(!battle&&inBattle){
+    // battle was cleared by the other side — close overlay if open
+    // endBattle handles our own close; this handles the case where we hadn't triggered it yet
+  }
+}
+
+// ══════════════════════════════════════════════
+//  MOVEMENT
+// ══════════════════════════════════════════════
+async function moveMe(dir){
+  if(moveCooldown||wildPokemon||inBattle)return;
+  if(!currentRoomId||!myRole||!roomData)return;
+  const me=roomData.players?.[myPCID];
+  if(!me)return;
+  moveCooldown=true;setTimeout(()=>moveCooldown=false,220);
+
+  let {r,c}=me.pos||{r:myRole==='p1'?0:2,c:myRole==='p1'?0:2};
+  if(dir==='up')   r=Math.max(0,r-1);
+  if(dir==='down') r=Math.min(2,r+1);
+  if(dir==='left') c=Math.max(0,c-1);
+  if(dir==='right')c=Math.min(2,c+1);
+  const newPos={r,c};
+
+  // Grass encounter check
+  if(MAP[r][c]===1&&Math.random()<0.5){
+    await mySlot().child('pos').set(newPos);
+    await mySlot().child('encountering').set(true);
+    showEncounter();
+    return;
+  }
+
+  await mySlot().child('pos').set(newPos);
+
+  // Check player collision
+  const players=roomData.players||{};
+  const opp=Object.values(players).find(p=>p.pcid!==myPCID);
+  if(opp&&opp.pos&&opp.pos.r===r&&opp.pos.c===c){
+    const myMon=players[myPCID]?.mon;
+    const oppMon=opp.mon;
+    if(myMon&&oppMon&&!roomData.game?.battle){
+      await initiateBattle(players);
+    } else if(!myMon){
+      pushLog('⚠️  You need a Pokémon! Go find one in the tall grass!');
+    } else if(!oppMon){
+      pushLog('⚠️  Opponent needs a Pokémon first!');
+    }
+  }
+}
+
+// ══════════════════════════════════════════════
+//  ENCOUNTER
+// ══════════════════════════════════════════════
+function showEncounter(){
+  wildPokemon=randMon();
+  const myMon=roomData?.players?.[myPCID]?.mon;
+  const ov=document.getElementById('ov-enc');
+  const tc=TC[wildPokemon.type]||'#777';
+  document.getElementById('enc-title').textContent=`A wild ${wildPokemon.name} appeared!`;
+  document.getElementById('enc-em').textContent=wildPokemon.em;
+  document.getElementById('enc-name').textContent=wildPokemon.name;
+  const badge=document.getElementById('enc-badge');
+  badge.textContent=wildPokemon.type;badge.style.cssText=`background:${tc}22;color:${tc};border:1px solid ${tc}44;margin-bottom:10px;`;
+  document.getElementById('enc-hp').textContent=wildPokemon.hp;
+  document.getElementById('enc-atk').textContent=wildPokemon.atk;
+  document.getElementById('enc-def').textContent=wildPokemon.def;
+  document.getElementById('enc-spd').textContent=wildPokemon.spd;
+  document.getElementById('enc-moves').textContent=wildPokemon.moves.join(' · ');
+  document.getElementById('enc-warn').textContent=myMon?`⚠️ Replaces ${myMon.name}`:'';
+  ov.classList.remove('hidden');
+}
+
+async function doCatch(){
+  if(!wildPokemon)return;
+  const old=roomData?.players?.[myPCID]?.mon;
+  const mon={...wildPokemon};
+  await mySlot().update({mon,encountering:false});
+  pushLog(`🎉 Caught ${mon.name}!${old?` (Released ${old.name})`:''}` );
+  wildPokemon=null;
+  document.getElementById('ov-enc').classList.add('hidden');
+}
+
+async function doRun(){
+  await mySlot().child('encountering').set(false);
+  pushLog('🏃 Got away safely!');
+  wildPokemon=null;
+  document.getElementById('ov-enc').classList.add('hidden');
+}
+
+// ══════════════════════════════════════════════
+//  BATTLE — INITIATE
+// ══════════════════════════════════════════════
+async function initiateBattle(players){
+  const p1=Object.values(players).find(p=>p.role==='p1');
+  const p2=Object.values(players).find(p=>p.role==='p2');
+  await battleRef().transaction(existing=>{
+    if(existing)return; // already started
+    return{
+      p1Pcid:p1.pcid,p2Pcid:p2.pcid,
+      p1Mon:{...p1.mon},p2Mon:{...p2.mon},
+      p1Hp:p1.mon.hp,p2Hp:p2.mon.hp,
+      p1Move:null,p2Move:null,
+      log:['⚔️ Battle started! Choose your move!'],
+      done:false,win:null,
+    };
+  });
+}
+
+// ══════════════════════════════════════════════
+//  BATTLE — OVERLAY
+// ══════════════════════════════════════════════
+function openBattleOverlay(room,battle){
+  inBattle=true;myMoveChosen=null;
+  const players=room.players;
+  const p1=Object.values(players).find(p=>p.role==='p1');
+  const p2=Object.values(players).find(p=>p.role==='p2');
+  const isP1=myRole==='p1';
+  const myMon=isP1?battle.p1Mon:battle.p2Mon;
+  const oppName=isP1?p2?.name:'P2'||p1?.name||'P1';
+
+  updateBatHps(battle,p1,p2);
+  renderBatLog(battle.log);
+  document.getElementById('bat-result').classList.add('hidden');
+  document.getElementById('bat-moves').style.display='flex';
+  document.getElementById('opp-lbl').textContent=`${isP1?'🔵':'🔴'} ${oppName}:`;
+  renderMyBatMoves(myMon,battle,isP1);
+  updateOppStatus(battle,isP1);
+  document.getElementById('ov-bat').classList.remove('hidden');
+}
+
+function syncBattleOverlay(room,battle){
+  const players=room.players;
+  const p1=Object.values(players).find(p=>p.role==='p1');
+  const p2=Object.values(players).find(p=>p.role==='p2');
+  const isP1=myRole==='p1';
+  updateBatHps(battle,p1,p2);
+  renderBatLog(battle.log);
+  if(battle.done){
+    document.getElementById('bat-moves').style.display='none';
+    document.getElementById('bat-result').classList.remove('hidden');
+    const isWin=battle.win===myPCID;
+    const isDraw=!battle.win;
+    document.getElementById('bat-winner').textContent=isDraw?'🤝 DRAW!':isWin?'🏆 YOU WIN!':'💀 YOU LOSE!';
+    document.getElementById('bat-sub').textContent=isDraw?'Both Pokémon fainted!':isWin?'Opponent must catch a new Pokémon!':'You must catch a new Pokémon!';
+    battleSnapshot={...battle};
+  } else {
+    // new round started
+    if(!battle.p1Move&&!battle.p2Move&&myMoveChosen){
+      myMoveChosen=null;
+    }
+    const myMon=isP1?battle.p1Mon:battle.p2Mon;
+    renderMyBatMoves(myMon,battle,isP1);
+    updateOppStatus(battle,isP1);
+  }
+}
+
+function updateBatHps(battle,p1,p2){
+  const p1Pct=Math.max(0,battle.p1Hp/(battle.p1Mon?.hp||1)*100);
+  const p2Pct=Math.max(0,battle.p2Hp/(battle.p2Mon?.hp||1)*100);
+  document.getElementById('bat-p1-lbl').textContent=`🔴 ${p1?.name||'P1'} · ${battle.p1Mon?.name||''} ${battle.p1Mon?.em||''}`;
+  document.getElementById('bat-p2-lbl').textContent=`🔵 ${p2?.name||'P2'} · ${battle.p2Mon?.name||''} ${battle.p2Mon?.em||''}`;
+  document.getElementById('bat-p1-hp').textContent=`${battle.p1Hp}/${battle.p1Mon?.hp||'?'} HP`;
+  document.getElementById('bat-p2-hp').textContent=`${battle.p2Hp}/${battle.p2Mon?.hp||'?'} HP`;
+  const b1=document.getElementById('bat-p1-bar');
+  b1.style.width=p1Pct+'%';b1.className=`hp-bar ${p1Pct>50?'hp-hi':p1Pct>25?'hp-md':'hp-lo'}`;
+  const b2=document.getElementById('bat-p2-bar');
+  b2.style.width=p2Pct+'%';b2.className=`hp-bar ${p2Pct>50?'hp-hi':p2Pct>25?'hp-md':'hp-lo'}`;
+  document.getElementById('bat-p1-chosen').textContent=battle.p1Move?'✓ Move chosen':'';
+  document.getElementById('bat-p2-chosen').textContent=battle.p2Move?'✓ Move chosen':'';
+}
+
+function renderBatLog(log){
+  const el=document.getElementById('bat-log');
+  if(!log?.length){el.innerHTML='';return;}
+  const recent=log.slice(-3);
+  el.innerHTML=recent.map((l,i)=>`<div style="color:${i===recent.length-1?'#ddd':'#3a3a5a'}">${l}</div>`).join('');
+}
+
+function renderMyBatMoves(mon,battle,isP1){
+  const el=document.getElementById('my-moves');
+  if(!mon){el.innerHTML='';return;}
+  const myMove=isP1?battle.p1Move:battle.p2Move;
+  el.innerHTML='';
+  mon.moves.forEach(mv=>{
+    const m=MOVES[mv];const tc=m?(TC[m.type]||'#888'):'#888';
+    const btn=document.createElement('button');
+    btn.className='move-btn'+(myMove===mv?' chosen':'');
+    btn.disabled=!!myMove;
+    btn.innerHTML=`<span>${mv}</span><span style="color:${tc};font-size:5px;">${m?m.type:'?'}${m&&m.pow>0?` ⚔${m.pow}`:' —'}</span>`;
+    btn.onclick=()=>selectMove(mv,isP1);
+    el.appendChild(btn);
+  });
+}
+
+function updateOppStatus(battle,isP1){
+  const oppMove=isP1?battle.p2Move:battle.p1Move;
+  const el=document.getElementById('opp-status');
+  el.textContent=oppMove?'✓ Move chosen!':'Waiting for move…';
+  el.style.color=oppMove?'var(--green)':'var(--dim)';
+}
+
+// ══════════════════════════════════════════════
+//  BATTLE — MOVE SELECTION & RESOLUTION
+// ══════════════════════════════════════════════
+async function selectMove(moveName,isP1){
+  if(myMoveChosen)return;
+  myMoveChosen=moveName;
+  await battleRef().transaction(battle=>{
+    if(!battle||battle.done)return battle;
+    if(isP1)battle.p1Move=moveName;
+    else     battle.p2Move=moveName;
+    if(battle.p1Move&&battle.p2Move)return resolveRound(battle);
+    return battle;
+  });
+}
+
+function resolveRound(battle){
+  let{p1Hp,p2Hp,p1Mon,p2Mon}=battle;
+  const log=[...(battle.log||[])];
+  const p1First=p1Mon.spd>=p2Mon.spd;
+
+  function strike(atker,mv,defHp,def){
+    const m=MOVES[mv];
+    if(!m||m.pow===0){
+      const note=m?.fx==='nothing'?' But nothing happened!':m?.fx==='sleep'?' 💤 Foe may sleep!':' (stat changed)';
+      log.push(`${atker.name} used ${mv}!${note}`);return defHp;
+    }
+    const e=getEff(m.type,def.type);
+    const d=calcDmg(atker,mv,def);
+    const tag=e>1?' ⚡ Super effective!':e===0?' ❌ No effect!':e<1?' 🛡 Not very effective...':'';
+    log.push(`${atker.name} used ${mv}! (-${d} HP)${tag}`);
+    return Math.max(0,defHp-d);
+  }
+
+  if(p1First){
+    p2Hp=strike(p1Mon,battle.p1Move,p2Hp,p2Mon);
+    if(p2Hp>0)p1Hp=strike(p2Mon,battle.p2Move,p1Hp,p1Mon);
+  } else {
+    p1Hp=strike(p2Mon,battle.p2Move,p1Hp,p1Mon);
+    if(p1Hp>0)p2Hp=strike(p1Mon,battle.p1Move,p2Hp,p2Mon);
+  }
+
+  let done=false,win=null;
+  if(p1Hp<=0&&p2Hp<=0){log.push('💥 Both fainted! DRAW!');done=true;}
+  else if(p1Hp<=0){log.push(`💀 ${p1Mon.name} fainted! P2 WINS! 🏆`);done=true;win=battle.p2Pcid;}
+  else if(p2Hp<=0){log.push(`💀 ${p2Mon.name} fainted! P1 WINS! 🏆`);done=true;win=battle.p1Pcid;}
+  else{log.push('Both moves landed! Choose next move…');}
+
+  return{...battle,p1Hp,p2Hp,p1Move:null,p2Move:null,log:log.slice(-5),done,win};
+}
+
+async function endBattle(){
+  const snap=battleSnapshot||roomData?.game?.battle;
+  inBattle=false;myMoveChosen=null;battleSnapshot=null;
+  document.getElementById('ov-bat').classList.add('hidden');
+
+  // Clear battle in Firebase
+  await battleRef().remove();
+
+  if(!snap)return;
+  const isWin=snap.win===myPCID;
+  const isDraw=!snap.win;
+
+  if(isDraw){
+    // Both lose mon
+    await mySlot().child('mon').remove();
+    pushLog('💔 Both Pokémon fainted! Find new ones in the grass!');
+  } else if(!isWin){
+    // I lost
+    await mySlot().child('mon').remove();
+    pushLog('💔 Your Pokémon fainted! Find a new one in the grass!');
+  } else {
+    // I won — save remaining HP
+    const myHp=myRole==='p1'?snap.p1Hp:snap.p2Hp;
+    const myMon=roomData?.players?.[myPCID]?.mon;
+    if(myMon)await mySlot().child('mon/curHp').set(myHp);
+    pushLog('🏆 You won the battle!');
+  }
+}
+
+// ══════════════════════════════════════════════
+//  LEAVE GAME
+// ══════════════════════════════════════════════
+async function leaveGame(){
+  inBattle=false;wildPokemon=null;myMoveChosen=null;
+  document.getElementById('ov-bat').classList.add('hidden');
+  document.getElementById('ov-enc').classList.add('hidden');
+  // Don't leave room — just go to room waiting screen
+  showScreen('room');
+  // Room listener still active, will restore game if status still in_progress
+}
+
+// ══════════════════════════════════════════════
+//  NAME CHANGE
+// ══════════════════════════════════════════════
+function toggleNameEdit(){
+  const el=document.getElementById('name-edit');
+  el.classList.toggle('hidden');
+  if(!el.classList.contains('hidden'))document.getElementById('name-edit-inp').focus();
+}
+async function saveName(){
+  const v=document.getElementById('name-edit-inp').value.trim();
+  if(!v||v.length<2)return;
+  myName=v;
+  await pRef().update({name:myName});
+  if(currentRoomId)await mySlot().child('name').set(myName);
+  document.getElementById('lob-name').textContent=myName;
+  document.getElementById('name-edit').classList.add('hidden');
+  toast(`Name changed to ${myName}!`);
+}
+document.getElementById('name-edit-inp').onkeydown=e=>{
+  if(e.key==='Enter')saveName();
+  if(e.key==='Escape')toggleNameEdit();
+};
+
+// ══════════════════════════════════════════════
+//  KEYBOARD
+// ══════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('scr-game').classList.contains('hidden'))return;
+  // Don't fire if typing in an input
+  if(document.activeElement&&document.activeElement.tagName==='INPUT')return;
+  const map={w:'up',W:'up',s:'down',S:'down',a:'left',A:'left',d:'right',D:'right'};
+  const arrows={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'};
+  if(arrows[e.key])e.preventDefault();
+  const dir=map[e.key]||arrows[e.key];
+  if(dir)moveMe(dir);
+});
+
+// ══════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
