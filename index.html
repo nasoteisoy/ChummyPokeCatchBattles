@@ -6,6 +6,7 @@
 <title>PokéDraft Battle</title>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="pokedraft-assets/manifest.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -117,12 +118,20 @@ input[type=text]:focus{border-color:var(--gold);}
   :root{--ts:88px;}
 }
 .tile{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;}
-.tile.grass{background:var(--grass);}
-.tile.path{background:var(--path);}
-.tile:not(:nth-child(3n)){border-right:1px solid #0a0a0a;}
-.tile:nth-child(-n+6){border-bottom:1px solid #0a0a0a;}
-.grass-deco{position:absolute;font-size:32px;opacity:.2;animation:sway 2.4s ease-in-out infinite;pointer-events:none;}
-@keyframes sway{0%,100%{transform:scale(1)rotate(-1deg)}50%{transform:scale(1.08)rotate(2deg)}}
+.tile.grass{background:var(--grass) url('pokedraft-assets/tiles/grass.png') center/cover;}
+.tile.path{background:var(--path) url('pokedraft-assets/tiles/path.png') center/cover;}
+.tile:not(:nth-child(3n)){border-right:1px solid #050505;}
+.tile:nth-child(-n+6){border-bottom:1px solid #050505;}
+img.sprite,img.icon-img,img.artwork-img{image-rendering:pixelated;image-rendering:crisp-edges;}
+img.sprite{display:block;}
+.enc-art-wrap{width:160px;height:160px;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;}
+img.artwork-img{width:100%;height:100%;object-fit:contain;}
+.bat-scene{position:relative;width:100%;height:110px;border-radius:8px;overflow:hidden;margin-bottom:10px;background:#b4d6f7;}
+.bat-scene-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.bat-sprite-opp{position:absolute;bottom:36%;right:10%;width:76px;height:76px;object-fit:contain;}
+.bat-sprite-me{position:absolute;bottom:16%;left:8%;width:76px;height:76px;object-fit:contain;transform:scaleX(-1);}
+.panel-icon-wrap{text-align:center;height:44px;display:flex;align-items:center;justify-content:center;}
+img.icon-img{width:40px;height:40px;}
 .token{
   position:absolute;width:32px;height:32px;border-radius:50%;
   border:3px solid #fff;display:flex;align-items:center;justify-content:center;
@@ -319,7 +328,10 @@ input[type=text]:focus{border-color:var(--gold);}
   <div class="overlay hidden" id="ov-enc">
     <div class="ocard">
       <div style="font-size:7px;color:var(--gold);margin-bottom:12px;" id="enc-title">Wild Pokémon!</div>
-      <div style="font-size:60px;" id="enc-em">❓</div>
+      <div class="enc-art-wrap">
+        <img id="enc-artwork" class="artwork-img" src="" alt="" style="display:none;">
+        <div style="font-size:60px;" id="enc-em">❓</div>
+      </div>
       <div style="font-size:14px;color:#fff;margin:4px 0;" id="enc-name">???</div>
       <div id="enc-badge" class="tbadge" style="margin-bottom:10px;">???</div>
       <div style="display:flex;gap:14px;justify-content:center;font-size:6px;color:var(--dim);margin-bottom:6px;">
@@ -340,7 +352,14 @@ input[type=text]:focus{border-color:var(--gold);}
   <!-- BATTLE OVERLAY -->
   <div class="overlay hidden" id="ov-bat">
     <div class="ocard">
-      <div style="text-align:center;font-size:10px;letter-spacing:4px;margin-bottom:14px;" class="gold">⚔️ B A T T L E ⚔️</div>
+      <div style="text-align:center;font-size:10px;letter-spacing:4px;margin-bottom:10px;" class="gold">⚔️ B A T T L E ⚔️</div>
+
+      <!-- Battle scene -->
+      <div class="bat-scene">
+        <img id="bat-bg" class="bat-scene-bg" src="pokedraft-assets/tiles/battle_bg.png" alt="">
+        <img id="bat-sprite-opp" class="bat-sprite-opp sprite" src="" alt="" style="display:none;">
+        <img id="bat-sprite-me"  class="bat-sprite-me  sprite" src="" alt="" style="display:none;">
+      </div>
 
       <!-- HP panels -->
       <div style="display:flex;gap:10px;margin-bottom:12px;">
@@ -471,6 +490,15 @@ const TC={
   Ghost:"#9C27B0",Fighting:"#F44336",Psychic:"#E91E63",Normal:"#9E9E9E",Ground:"#FF9800",
   Dark:"#5D4037",Ice:"#80DEEA",
 };
+
+// ── Asset lookup (manifest.js loaded in <head>) ─────────────
+function getAsset(name){
+  return (typeof POKEMON_ASSETS!=='undefined'&&POKEMON_ASSETS[name])||null;
+}
+function setImg(el,src){
+  if(src){el.src=src;el.style.display='';}
+  else{el.src='';el.style.display='none';}
+}
 
 // ══════════════════════════════════════════════
 //  STATE
@@ -808,8 +836,12 @@ function renderPanel(role,player,battle){
   const pct=Math.max(0,curHp/mon.hp*100);
   const barClass=pct>50?'hp-hi':pct>25?'hp-md':'hp-lo';
   const tc=TC[mon.type]||'#777';
+  const _pa=getAsset(mon.name);
+  const iconHtml=_pa?.icon
+    ?`<div class="panel-icon-wrap"><img class="icon-img" src="${_pa.icon}" alt="${mon.name}"></div>`
+    :`<div class="panel-em">${mon.em}</div>`;
   inner.innerHTML=`
-    <div class="panel-em">${mon.em}</div>
+    ${iconHtml}
     <div class="panel-name">${mon.name}</div>
     <div class="panel-type"><span class="tbadge" style="background:${tc}22;color:${tc};border:1px solid ${tc}44;">${mon.type}</span></div>
     <div class="panel-hptext">${curHp}/${mon.hp} HP</div>
@@ -888,7 +920,17 @@ function showEncounter(){
   const ov=document.getElementById('ov-enc');
   const tc=TC[wildPokemon.type]||'#777';
   document.getElementById('enc-title').textContent=`A wild ${wildPokemon.name} appeared!`;
-  document.getElementById('enc-em').textContent=wildPokemon.em;
+  const _encAsset=getAsset(wildPokemon.name);
+  const _encArt=document.getElementById('enc-artwork');
+  const _encEm=document.getElementById('enc-em');
+  if(_encAsset?.artwork){
+    setImg(_encArt,_encAsset.artwork);
+    _encEm.style.display='none';
+  } else {
+    _encArt.style.display='none';
+    _encEm.style.display='';
+    _encEm.textContent=wildPokemon.em;
+  }
   document.getElementById('enc-name').textContent=wildPokemon.name;
   const badge=document.getElementById('enc-badge');
   badge.textContent=wildPokemon.type;badge.style.cssText=`background:${tc}22;color:${tc};border:1px solid ${tc}44;margin-bottom:10px;`;
@@ -947,7 +989,14 @@ function openBattleOverlay(room,battle){
   const p2=Object.values(players).find(p=>p.role==='p2');
   const isP1=myRole==='p1';
   const myMon=isP1?battle.p1Mon:battle.p2Mon;
+  const oppMon=isP1?battle.p2Mon:battle.p1Mon;
   const oppName=isP1?p2?.name:'P2'||p1?.name||'P1';
+
+  // Set battle sprites
+  const myA=getAsset(myMon?.name);
+  const oppA=getAsset(oppMon?.name);
+  setImg(document.getElementById('bat-sprite-me'),  myA?.back||myA?.front||null);
+  setImg(document.getElementById('bat-sprite-opp'), oppA?.front||null);
 
   updateBatHps(battle,p1,p2);
   renderBatLog(battle.log);
@@ -988,8 +1037,8 @@ function syncBattleOverlay(room,battle){
 function updateBatHps(battle,p1,p2){
   const p1Pct=Math.max(0,battle.p1Hp/(battle.p1Mon?.hp||1)*100);
   const p2Pct=Math.max(0,battle.p2Hp/(battle.p2Mon?.hp||1)*100);
-  document.getElementById('bat-p1-lbl').textContent=`🔴 ${p1?.name||'P1'} · ${battle.p1Mon?.name||''} ${battle.p1Mon?.em||''}`;
-  document.getElementById('bat-p2-lbl').textContent=`🔵 ${p2?.name||'P2'} · ${battle.p2Mon?.name||''} ${battle.p2Mon?.em||''}`;
+  document.getElementById('bat-p1-lbl').textContent=`🔴 ${p1?.name||'P1'} · ${battle.p1Mon?.name||''}`;
+  document.getElementById('bat-p2-lbl').textContent=`🔵 ${p2?.name||'P2'} · ${battle.p2Mon?.name||''}`;
   document.getElementById('bat-p1-hp').textContent=`${battle.p1Hp}/${battle.p1Mon?.hp||'?'} HP`;
   document.getElementById('bat-p2-hp').textContent=`${battle.p2Hp}/${battle.p2Mon?.hp||'?'} HP`;
   const b1=document.getElementById('bat-p1-bar');
